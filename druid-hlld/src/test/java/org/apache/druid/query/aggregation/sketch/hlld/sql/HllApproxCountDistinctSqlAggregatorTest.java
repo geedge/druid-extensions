@@ -1,83 +1,64 @@
 package org.apache.druid.query.aggregation.sketch.hlld.sql;
 
 
+import com.alibaba.fastjson2.JSON;
 import com.fasterxml.jackson.databind.Module;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import org.apache.calcite.schema.SchemaPlus;
-import org.apache.druid.java.util.common.io.Closer;
+import com.google.inject.Injector;
+import org.apache.druid.guice.DruidInjectorBuilder;
 import org.apache.druid.query.QueryRunnerFactoryConglomerate;
-import org.apache.druid.query.aggregation.CountAggregatorFactory;
-import org.apache.druid.query.aggregation.DoubleSumAggregatorFactory;
-import org.apache.druid.query.aggregation.sketch.hlld.HllAggregatorFactory;
 import org.apache.druid.query.aggregation.sketch.hlld.HllModule;
-import org.apache.druid.segment.IndexBuilder;
 import org.apache.druid.segment.QueryableIndex;
 import org.apache.druid.segment.TestHelper;
-import org.apache.druid.segment.incremental.IncrementalIndexSchema;
-import org.apache.druid.segment.writeout.OffHeapMemorySegmentWriteOutMediumFactory;
-import org.apache.druid.server.QueryStackTests;
-import org.apache.druid.server.security.AuthTestUtils;
-import org.apache.druid.server.security.AuthenticationResult;
-import org.apache.druid.sql.SqlLifecycle;
-import org.apache.druid.sql.SqlLifecycleFactory;
-import org.apache.druid.sql.calcite.planner.DruidOperatorTable;
-import org.apache.druid.sql.calcite.planner.PlannerConfig;
-import org.apache.druid.sql.calcite.planner.PlannerContext;
-import org.apache.druid.sql.calcite.planner.PlannerFactory;
-import org.apache.druid.sql.calcite.util.CalciteTestBase;
+import org.apache.druid.segment.join.JoinableFactoryWrapper;
+import org.apache.druid.sql.calcite.BaseCalciteQueryTest;
+import org.apache.druid.sql.calcite.QueryTestBuilder;
+import org.apache.druid.sql.calcite.QueryTestRunner;
 import org.apache.druid.sql.calcite.util.CalciteTests;
-import org.apache.druid.sql.calcite.util.QueryLogHook;
 import org.apache.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
 import org.apache.druid.timeline.DataSegment;
 import org.apache.druid.timeline.partition.LinearShardSpec;
 import org.junit.*;
-import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
-public class HllApproxCountDistinctSqlAggregatorTest extends CalciteTestBase {
-    private static final String DATA_SOURCE = "foo";
+// 新版本父类直接变了，实现更简单了
+public class HllApproxCountDistinctSqlAggregatorTest extends BaseCalciteQueryTest {
     private static final boolean ROUND = true;
-    private static final Map<String, Object> QUERY_CONTEXT_DEFAULT = ImmutableMap.of(
-            PlannerContext.CTX_SQL_QUERY_ID, "dummy"
-    );
-    private static QueryRunnerFactoryConglomerate conglomerate;
-    private static Closer resourceCloser;
-    private static AuthenticationResult authenticationResult = CalciteTests.REGULAR_USER_AUTH_RESULT;
 
-    @Rule
-    public TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-    @Rule
-    public QueryLogHook queryLogHook = QueryLogHook.create(TestHelper.JSON_MAPPER);
-
-    private SpecificSegmentsQuerySegmentWalker walker;
-    private SqlLifecycleFactory sqlLifecycleFactory;
-
-    @BeforeClass
-    public static void setUpClass() {
-        resourceCloser = Closer.create();
-        conglomerate = QueryStackTests.createQueryRunnerFactoryConglomerate(resourceCloser);
+    @Override
+    public void gatherProperties(Properties properties)
+    {
+        super.gatherProperties(properties);
     }
 
-    @AfterClass
-    public static void tearDownClass() throws IOException {
-        resourceCloser.close();
+    @Override
+    public void configureGuice(DruidInjectorBuilder builder)
+    {
+        super.configureGuice(builder);
+        builder.addModule(new HllModule());
     }
 
-    @Before
-    public void setUp() throws Exception {
+
+
+    @SuppressWarnings("resource")
+    @Override
+    public SpecificSegmentsQuerySegmentWalker createQuerySegmentWalker(
+            final QueryRunnerFactoryConglomerate conglomerate,
+            final JoinableFactoryWrapper joinableFactory,
+            final Injector injector
+    ) throws IOException
+    {
         HllModule.registerSerde();
         for (Module mod : new HllModule().getJacksonModules()) {
             CalciteTests.getJsonMapper().registerModule(mod);
             TestHelper.JSON_MAPPER.registerModule(mod);
         }
 
-        final QueryableIndex index = IndexBuilder.create()
+        final QueryableIndex index = TestHelper.getTestIndexIO().loadIndex(new File("D:/doc/datas/testIndex-1369101812"));
+        //final QueryableIndex index = TestHelper.getTestIndexIO().loadIndex(new File("D:/doc/datas/9_index"));
+       /*final QueryableIndex index = IndexBuilder.create()
                 .tmpDir(temporaryFolder.newFolder())
                 .segmentWriteOutMediumFactory(OffHeapMemorySegmentWriteOutMediumFactory.instance())
                 .schema(
@@ -95,12 +76,12 @@ public class HllApproxCountDistinctSqlAggregatorTest extends CalciteTestBase {
                                 .withRollup(false)
                                 .build()
                 )
-                .rows(CalciteTests.ROWS1)
-                .buildMMappedIndex();
+                .rows(TestDataBuilder.ROWS1)
+                .buildMMappedIndex();*/
 
-        walker = new SpecificSegmentsQuerySegmentWalker(conglomerate).add(
+        return new SpecificSegmentsQuerySegmentWalker(conglomerate).add(
                 DataSegment.builder()
-                        .dataSource(DATA_SOURCE)
+                        .dataSource(CalciteTests.DATASOURCE1)
                         .interval(index.getDataInterval())
                         .version("1")
                         .shardSpec(new LinearShardSpec(0))
@@ -108,45 +89,47 @@ public class HllApproxCountDistinctSqlAggregatorTest extends CalciteTestBase {
                         .build(),
                 index
         );
-
-        final PlannerConfig plannerConfig = new PlannerConfig();
-        final DruidOperatorTable operatorTable = new DruidOperatorTable(
-                ImmutableSet.of(
-                        new HllApproxCountDistinctSqlAggregator(),
-                        new HllObjectSqlAggregator()
-                ),
-                ImmutableSet.of(
-                        new HllEstimateOperatorConversion()
-                )
-        );
-
-        SchemaPlus rootSchema = CalciteTests.createMockRootSchema(conglomerate, walker, plannerConfig, AuthTestUtils.TEST_AUTHORIZER_MAPPER);
-        sqlLifecycleFactory = CalciteTests.createSqlLifecycleFactory(
-                new PlannerFactory(
-                        rootSchema,
-                        CalciteTests.createMockQueryLifecycleFactory(walker, conglomerate),
-                        operatorTable,
-                        CalciteTests.createExprMacroTable(),
-                        plannerConfig,
-                        AuthTestUtils.TEST_AUTHORIZER_MAPPER,
-                        CalciteTests.getJsonMapper(),
-                        CalciteTests.DRUID_SCHEMA_NAME
-                )
-        );
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        walker.close();
-        walker = null;
     }
 
     @Test
     public void testSqlQuery() throws Exception {
-        SqlLifecycle sqlLifecycle = sqlLifecycleFactory.factorize();
-        String sql = "select * from druid.foo";
-        final List<Object[]> results =
-                sqlLifecycle.runSimple(sql, QUERY_CONTEXT_DEFAULT, DEFAULT_PARAMETERS, authenticationResult).toList();
+        // Can't vectorize due to SUBSTRING expression.
+        cannotVectorize();
+        String[] columns = new String[]{"__time", "dim1", "dim2", "dim3", "cnt", "hll_dim1", "m1"};
+
+        String sql = "select " + String.join(",", columns) + " from druid.foo";
+        QueryTestBuilder builder = testBuilder().sql(sql);
+        builder.run();
+        QueryTestRunner.QueryResults queryResults = builder.results();
+        List<Object[]> results = queryResults.results;
+        for (Object[] result : results) {
+            Map row = new LinkedHashMap();
+            for (int i = 0; i < result.length; i++) {
+                row.put(columns[i], result[i]);
+            }
+            System.out.println(JSON.toJSONString(row));
+            // System.out.println(Arrays.toString(result));
+        }
+
+        for (int i = 0; i < columns.length; i++) {
+            Object[] values = new Object[results.size()];
+            for (int j = 0; j < results.size(); j++) {
+                values[j] = results.get(j)[i];
+            }
+            System.out.println(columns[i] + ":" + Arrays.toString(values));
+        }
+    }
+
+    @Test
+    public void testSqlQuery1() throws Exception {
+        // Can't vectorize due to SUBSTRING expression.
+        cannotVectorize();
+
+        String sql = "select dim1 from druid.foo";
+        QueryTestBuilder builder = testBuilder().sql(sql);
+        builder.run();
+        QueryTestRunner.QueryResults queryResults = builder.results();
+        List<Object[]> results = queryResults.results;
         for (Object[] result : results) {
             System.out.println(Arrays.toString(result));
         }
@@ -154,37 +137,67 @@ public class HllApproxCountDistinctSqlAggregatorTest extends CalciteTestBase {
 
     @Test
     public void testSqlQuery2() throws Exception {
-        SqlLifecycle sqlLifecycle = sqlLifecycleFactory.factorize();
-        String sql = "select HLLD_ESTIMATE(HLLD(hll_dim1)) from druid.foo  where dim1 = ''";
-        final List<Object[]> results =
-                sqlLifecycle.runSimple(sql, QUERY_CONTEXT_DEFAULT, DEFAULT_PARAMETERS, authenticationResult).toList();
+        //cannotVectorize();
+        //String sql = "select HLLD_ESTIMATE(HLLD(hll_dim1)) from druid.foo  where dim1 = '1'";
+        // Caused by: org.apache.calcite.sql.validate.SqlValidatorException: Aggregate expressions cannot be nested
+        //String sql = "select HLLD_ESTIMATE(HLLD(hll_dim1)), APPROX_COUNT_DISTINCT_HLLD(HLLD(hll_dim1)), HLLD(hll_dim1) from druid.foo";
+        String sql = "select HLLD_ESTIMATE(HLLD(hll_dim1)), APPROX_COUNT_DISTINCT_HLLD(hll_dim1), HLLD(hll_dim1) from (select HLLD(hll_dim1) hll_dim1 from druid.foo) t";
+        QueryTestBuilder builder = testBuilder().sql(sql).skipVectorize();
+        builder.run();
+        QueryTestRunner.QueryResults queryResults = builder.results();
+        List<Object[]> results = queryResults.results;
         for (Object[] result : results) {
             System.out.println(Arrays.toString(result));
         }
     }
 
     @Test
-    public void testAgg() throws Exception {
-        SqlLifecycle sqlLifecycle = sqlLifecycleFactory.factorize();
+    public void testSqlQuery3() throws Exception {
+        //cannotVectorize();
+        //String sql = "select HLLD_ESTIMATE(HLLD(hll_dim1)) from druid.foo  where dim1 = ''";
+        String sql = "select APPROX_COUNT_DISTINCT_HLLD(hll, 12) from (select HLLD(hll_dim1) hll from druid.foo where dim1 = '1') t ";
+        QueryTestBuilder builder = testBuilder().sql(sql).skipVectorize();
+        builder.run();
+        QueryTestRunner.QueryResults queryResults = builder.results();
+        List<Object[]> results = queryResults.results;
+        for (Object[] result : results) {
+            System.out.println(Arrays.toString(result));
+        }
+    }
 
+    @Test
+    public void testSqlQuery4() throws Exception {
+        //cannotVectorize();
+        //String sql = "select HLLD_ESTIMATE(HLLD(hll_dim1)) from druid.foo  where dim1 = ''";
+        String sql = "select APPROX_COUNT_DISTINCT_HLLD(hll, 12) from (select HLLD(hll_dim1) hll from druid.foo where dim1 = '1') t ";
+        QueryTestBuilder builder = testBuilder().sql(sql).skipVectorize();
+        builder.run();
+        QueryTestRunner.QueryResults queryResults = builder.results();
+        List<Object[]> results = queryResults.results;
+        for (Object[] result : results) {
+            System.out.println(Arrays.toString(result));
+        }
+    }
+
+   @Test
+    public void testAgg() throws Exception {
         final String sql = "SELECT\n"
                 + "  SUM(cnt),\n"
                 + "  APPROX_COUNT_DISTINCT_HLLD(hll_dim1)\n"
                 + "FROM druid.foo";
 
-        final List<Object[]> results =
-                sqlLifecycle.runSimple(sql, QUERY_CONTEXT_DEFAULT, DEFAULT_PARAMETERS, authenticationResult).toList();
-        for (Object[] result : results) {
-            System.out.println(Arrays.toString(result));
-        }
+       QueryTestBuilder builder = testBuilder().sql(sql).skipVectorize();
+       builder.run();
+       QueryTestRunner.QueryResults queryResults = builder.results();
+       List<Object[]> results = queryResults.results;
+       for (Object[] result : results) {
+           System.out.println(Arrays.toString(result));
+       }
 
     }
 
-
-    @Test
+     @Test
     public void testDistinct() throws Exception {
-        SqlLifecycle sqlLifecycle = sqlLifecycleFactory.factorize();
-
         final String sql = "SELECT\n"
                 + "  SUM(cnt),\n"
                 + "  APPROX_COUNT_DISTINCT_HLLD(dim2),\n" // uppercase
@@ -195,18 +208,17 @@ public class HllApproxCountDistinctSqlAggregatorTest extends CalciteTestBase {
                 + "  APPROX_COUNT_DISTINCT_HLLD(hll_dim1)\n" // on native HllSketch column
                 + "FROM druid.foo";
 
-        final List<Object[]> results =
-                sqlLifecycle.runSimple(sql, QUERY_CONTEXT_DEFAULT, DEFAULT_PARAMETERS, authenticationResult).toList();
-        for (Object[] result : results) {
-            System.out.println(Arrays.toString(result));
-        }
-
+         QueryTestBuilder builder = testBuilder().sql(sql).skipVectorize();
+         builder.run();
+         QueryTestRunner.QueryResults queryResults = builder.results();
+         List<Object[]> results = queryResults.results;
+         for (Object[] result : results) {
+             System.out.println(Arrays.toString(result));
+         }
     }
 
     @Test
     public void testDistinct2() throws Exception {
-        SqlLifecycle sqlLifecycle = sqlLifecycleFactory.factorize();
-
         final String sql = "SELECT\n"
                 + "  SUM(cnt),\n"
                 + "  APPROX_COUNT_DISTINCT_HLLD(dim2),\n"
@@ -219,8 +231,26 @@ public class HllApproxCountDistinctSqlAggregatorTest extends CalciteTestBase {
                 + "  APPROX_COUNT_DISTINCT_HLLD(hll_dim1)\n" // on native HllSketch column
                 + "FROM druid.foo";
 
-        final List<Object[]> results =
-                sqlLifecycle.runSimple(sql, QUERY_CONTEXT_DEFAULT, DEFAULT_PARAMETERS, authenticationResult).toList();
+        QueryTestBuilder builder = testBuilder().sql(sql).skipVectorize();
+        builder.run();
+        QueryTestRunner.QueryResults queryResults = builder.results();
+        List<Object[]> results = queryResults.results;
+        for (Object[] result : results) {
+            System.out.println(Arrays.toString(result));
+        }
+
+    }
+
+    @Test
+    public void testDistinctDebug2() throws Exception {
+        final String sql = "SELECT\n"
+                + "  dim1, dim2\n"
+                + "FROM druid.foo";
+
+        QueryTestBuilder builder = testBuilder().sql(sql).skipVectorize();
+        builder.run();
+        QueryTestRunner.QueryResults queryResults = builder.results();
+        List<Object[]> results = queryResults.results;
         for (Object[] result : results) {
             System.out.println(Arrays.toString(result));
         }
@@ -229,15 +259,15 @@ public class HllApproxCountDistinctSqlAggregatorTest extends CalciteTestBase {
 
     @Test
     public void testDistinctDebug() throws Exception {
-        SqlLifecycle sqlLifecycle = sqlLifecycleFactory.factorize();
-
         final String sql = "SELECT\n"
                 + "  SUM(cnt),\n"
                 + "  APPROX_COUNT_DISTINCT_HLLD(dim2)\n"
                 + "FROM druid.foo";
 
-        final List<Object[]> results =
-                sqlLifecycle.runSimple(sql, QUERY_CONTEXT_DEFAULT, DEFAULT_PARAMETERS, authenticationResult).toList();
+        QueryTestBuilder builder = testBuilder().sql(sql).skipVectorize();
+        builder.run();
+        QueryTestRunner.QueryResults queryResults = builder.results();
+        List<Object[]> results = queryResults.results;
         for (Object[] result : results) {
             System.out.println(Arrays.toString(result));
         }
@@ -246,14 +276,14 @@ public class HllApproxCountDistinctSqlAggregatorTest extends CalciteTestBase {
 
     @Test
     public void testDeser() throws Exception {
-        SqlLifecycle sqlLifecycle = sqlLifecycleFactory.factorize();
-
         final String sql = "SELECT\n"
                 + "  APPROX_COUNT_DISTINCT_HLLD(hll_dim1) cnt\n"
                 + "FROM druid.foo";
 
-        final List<Object[]> results =
-                sqlLifecycle.runSimple(sql, QUERY_CONTEXT_DEFAULT, DEFAULT_PARAMETERS, authenticationResult).toList();
+        QueryTestBuilder builder = testBuilder().sql(sql).skipVectorize();
+        builder.run();
+        QueryTestRunner.QueryResults queryResults = builder.results();
+        List<Object[]> results = queryResults.results;
         for (Object[] result : results) {
             System.out.println(Arrays.toString(result));
         }
@@ -263,30 +293,29 @@ public class HllApproxCountDistinctSqlAggregatorTest extends CalciteTestBase {
 
     @Test
     public void testGroupBy() throws Exception {
-        SqlLifecycle sqlLifecycle = sqlLifecycleFactory.factorize();
-
         final String sql = "SELECT cnt,\n"
                 + "  APPROX_COUNT_DISTINCT_HLLD(hll_dim1, 14) cnt2\n"
                 + "FROM druid.foo group by cnt";
 
-        final List<Object[]> results =
-                sqlLifecycle.runSimple(sql, QUERY_CONTEXT_DEFAULT, DEFAULT_PARAMETERS, authenticationResult).toList();
+        QueryTestBuilder builder = testBuilder().sql(sql).skipVectorize();
+        builder.run();
+        QueryTestRunner.QueryResults queryResults = builder.results();
+        List<Object[]> results = queryResults.results;
         for (Object[] result : results) {
             System.out.println(Arrays.toString(result));
         }
-
     }
 
     @Test
     public void testGroupBy1() throws Exception {
-        SqlLifecycle sqlLifecycle = sqlLifecycleFactory.factorize();
-
         final String sql = "SELECT __time,\n"
                 + "  APPROX_COUNT_DISTINCT_HLLD(hll_dim1, 14) cnt\n"
                 + "FROM druid.foo group by __time";
 
-        final List<Object[]> results =
-                sqlLifecycle.runSimple(sql, QUERY_CONTEXT_DEFAULT, DEFAULT_PARAMETERS, authenticationResult).toList();
+        QueryTestBuilder builder = testBuilder().sql(sql).skipVectorize();
+        builder.run();
+        QueryTestRunner.QueryResults queryResults = builder.results();
+        List<Object[]> results = queryResults.results;
         for (Object[] result : results) {
             System.out.println(Arrays.toString(result));
         }
@@ -295,14 +324,13 @@ public class HllApproxCountDistinctSqlAggregatorTest extends CalciteTestBase {
 
     @Test
     public void testGroupBy2() throws Exception {
-        SqlLifecycle sqlLifecycle = sqlLifecycleFactory.factorize();
-
         final String sql = "SELECT __time,\n"
                 + "  APPROX_COUNT_DISTINCT_HLLD(hll_dim1, 14) cnt\n"
                 + "FROM druid.foo group by __time order by cnt desc";
-
-        final List<Object[]> results =
-                sqlLifecycle.runSimple(sql, QUERY_CONTEXT_DEFAULT, DEFAULT_PARAMETERS, authenticationResult).toList();
+        QueryTestBuilder builder = testBuilder().sql(sql).skipVectorize();
+        builder.run();
+        QueryTestRunner.QueryResults queryResults = builder.results();
+        List<Object[]> results = queryResults.results;
         for (Object[] result : results) {
             System.out.println(Arrays.toString(result));
         }

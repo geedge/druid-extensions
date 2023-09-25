@@ -9,6 +9,7 @@ import org.apache.druid.query.aggregation.*;
 import org.apache.druid.query.cache.CacheKeyBuilder;
 import org.apache.druid.segment.ColumnSelectorFactory;
 import org.apache.druid.segment.ColumnValueSelector;
+import org.apache.druid.segment.column.ColumnType;
 
 import javax.annotation.Nullable;
 import java.util.Collections;
@@ -145,9 +146,9 @@ public class HllAggregatorFactory extends AggregatorFactory {
                     Math.max(precision, castedOther.precision),
                     round || castedOther.round
             );
-        } else {
-            throw new AggregatorFactoryNotMergeableException(this, other);
         }
+
+        throw new AggregatorFactoryNotMergeableException(this, other);
     }
 
     @Override
@@ -158,8 +159,18 @@ public class HllAggregatorFactory extends AggregatorFactory {
     }
 
     @Override
+    public AggregatorFactory withName(String newName) {
+        return new HllAggregatorFactory(newName, fieldName, precision, round);
+    }
+
+    @Override
     public Object deserialize(Object object) {
         return HllUtils.deserializeHll(object);
+    }
+
+    @Override
+    public ColumnType getResultType() {
+        return round ? ColumnType.LONG : ColumnType.DOUBLE;
     }
 
     @Nullable
@@ -168,14 +179,17 @@ public class HllAggregatorFactory extends AggregatorFactory {
         if (object == null) {
             return null;
         }
-        final Hll hll = (Hll) object;
+
+        return object;
+
+        /*final Hll hll = (Hll) object;
         final double estimate = hll.size();
 
         if (round) {
             return Math.round(estimate);
         } else {
             return estimate;
-        }
+        }*/
     }
 
     @Override
@@ -199,9 +213,16 @@ public class HllAggregatorFactory extends AggregatorFactory {
         return round;
     }
 
+    /*
+    没这个方法了, 新版本需要实现getIntermediateType方法
     @Override
     public String getTypeName() {
         return HllModule.HLLD_BUILD_TYPE_NAME;
+    }*/
+
+    @Override
+    public ColumnType getIntermediateType() {
+        return HllModule.BUILD_TYPE;
     }
 
     @Override
