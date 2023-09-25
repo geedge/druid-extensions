@@ -2,17 +2,13 @@ package org.apache.druid.query.aggregation.sketch.HdrHistogram;
 
 import com.google.common.collect.ImmutableMap;
 import org.HdrHistogram.*;
-import org.apache.datasketches.theta.Sketches;
-import org.apache.datasketches.theta.UpdateSketch;
 import org.apache.druid.data.input.MapBasedRow;
 import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.BufferAggregator;
 import org.apache.druid.query.aggregation.TestLongColumnSelector;
 import org.apache.druid.query.aggregation.TestObjectColumnSelector;
-import org.apache.druid.query.aggregation.datasketches.theta.SketchHolder;
-import org.apache.druid.query.aggregation.datasketches.theta.SketchMergeAggregatorFactory;
 import org.apache.druid.query.groupby.epinephelinae.GrouperTestUtil;
-import org.apache.druid.query.groupby.epinephelinae.TestColumnSelectorFactory;
+import org.apache.druid.query.groupby.epinephelinae.GroupByTestColumnSelectorFactory;
 import org.apache.druid.segment.ColumnSelectorFactory;
 import org.junit.Assert;
 import org.junit.Test;
@@ -230,7 +226,7 @@ public class HdrHistogramBufferAggregatorTest {
 
     @Test
     public void testMergeAggregatorRelocate() {
-        final TestColumnSelectorFactory columnSelectorFactory = GrouperTestUtil.newColumnSelectorFactory();
+        final GroupByTestColumnSelectorFactory columnSelectorFactory = GrouperTestUtil.newColumnSelectorFactory();
         HistogramSketch histogram = new HistogramSketch(3);
         for (int i = 0; i < 100000; i++) {
             histogram.recordValue(i);
@@ -252,7 +248,7 @@ public class HdrHistogramBufferAggregatorTest {
 
     @Test
     public void testAggregatorRelocate() {
-        final TestColumnSelectorFactory columnSelectorFactory = GrouperTestUtil.newColumnSelectorFactory();
+        final GroupByTestColumnSelectorFactory columnSelectorFactory = GrouperTestUtil.newColumnSelectorFactory();
         HistogramSketch histogram = new HistogramSketch(3);
         for (int i = 0; i < 100000; i++) {
             histogram.recordValue(i);

@@ -16,6 +16,7 @@ import org.apache.druid.query.aggregation.sketch.HdrHistogram.HdrHistogramAggreg
 import org.apache.druid.query.aggregation.sketch.HdrHistogram.HdrHistogramMergeAggregatorFactory;
 import org.apache.druid.query.aggregation.sketch.HdrHistogram.HdrHistogramToQuantilePostAggregator;
 import org.apache.druid.segment.VirtualColumn;
+import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
 import org.apache.druid.segment.column.ValueType;
 import org.apache.druid.segment.virtual.ExpressionVirtualColumn;
@@ -141,22 +142,16 @@ public class HdrHistogramQuantileSqlAggregator implements SqlAggregator {
 
                     // Check input for equivalence.
                     final boolean inputMatches;
-                    final VirtualColumn virtualInput = existing.getVirtualColumns()
-                            .stream()
-                            .filter(
-                                    virtualColumn ->
-                                            virtualColumn.getOutputName()
-                                                    .equals(theFactory.getFieldName())
-                            )
-                            .findFirst()
-                            .orElse(null);
+                    final DruidExpression virtualInput =
+                            virtualColumnRegistry.findVirtualColumnExpressions(theFactory.requiredFields())
+                                    .stream()
+                                    .findFirst()
+                                    .orElse(null);
 
                     if (virtualInput == null) {
-                        inputMatches = input.isDirectColumnAccess()
-                                && input.getDirectColumn().equals(theFactory.getFieldName());
+                        inputMatches = input.isDirectColumnAccess() && input.getDirectColumn().equals(theFactory.getFieldName());
                     } else {
-                        inputMatches = ((ExpressionVirtualColumn) virtualInput).getExpression()
-                                .equals(input.getExpression());
+                        inputMatches = virtualInput.equals(input);
                     }
 
                     final boolean matches = inputMatches
@@ -177,11 +172,11 @@ public class HdrHistogramQuantileSqlAggregator implements SqlAggregator {
         }
 
         // No existing match found. Create a new one.
-        final List<VirtualColumn> virtualColumns = new ArrayList<>();
+        //final List<VirtualColumn> virtualColumns = new ArrayList<>();
 
         if (input.isDirectColumnAccess()) {
             // 参数是Histogram对象
-            if (rowSignature.getColumnType(input.getDirectColumn()).orElse(null) == ValueType.COMPLEX) {
+            if (rowSignature.getColumnType(input.getDirectColumn()).map(type -> type.is(ValueType.COMPLEX)).orElse(false)) {
                 aggregatorFactory = new HdrHistogramMergeAggregatorFactory(
                         histogramName,
                         input.getDirectColumn(),
@@ -201,12 +196,11 @@ public class HdrHistogramQuantileSqlAggregator implements SqlAggregator {
                 );
             }
         } else {
-            final VirtualColumn virtualColumn =
-                    virtualColumnRegistry.getOrCreateVirtualColumnForExpression(plannerContext, input, SqlTypeName.BIGINT);
-            virtualColumns.add(virtualColumn);
+            final String virtualColumnName =
+                    virtualColumnRegistry.getOrCreateVirtualColumnForExpression(input, ColumnType.LONG);
             aggregatorFactory = new HdrHistogramAggregatorFactory(
                     histogramName,
-                    virtualColumn.getOutputName(),
+                    virtualColumnName,
                     lowestDiscernibleValue,
                     highestTrackableValue,
                     numberOfSignificantValueDigits,
@@ -234,7 +228,6 @@ public class HdrHistogramQuantileSqlAggregator implements SqlAggregator {
         }
 
         return Aggregation.create(
-                virtualColumns,
                 ImmutableList.of(aggregatorFactory),
                 new HdrHistogramToQuantilePostAggregator(name, histogramName, probability)
         );

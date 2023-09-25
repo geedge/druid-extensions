@@ -1,8 +1,6 @@
 package org.apache.druid.query.aggregation.sketch.HdrHistogram;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.HdrHistogram.DirectHistogram;
-import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramSketch;
 import org.HdrHistogram.HistogramUnion;
 import org.apache.druid.java.util.common.IAE;
@@ -10,6 +8,7 @@ import org.apache.druid.query.aggregation.*;
 import org.apache.druid.query.cache.CacheKeyBuilder;
 import org.apache.druid.segment.ColumnSelectorFactory;
 import org.apache.druid.segment.ColumnValueSelector;
+import org.apache.druid.segment.column.ColumnType;
 
 import javax.annotation.Nullable;
 import java.util.Collections;
@@ -209,14 +208,26 @@ public class HdrHistogramAggregatorFactory extends AggregatorFactory {
     }
 
     @Override
+    public AggregatorFactory withName(String newName) {
+        return new HdrHistogramAggregatorFactory(newName, fieldName, lowestDiscernibleValue, highestTrackableValue, numberOfSignificantValueDigits, autoResize);
+    }
+
+    @Override
     public Object deserialize(Object object) {
         return HistogramUtils.deserializeHistogram(object);
+    }
+
+    @Override
+    public ColumnType getResultType() {
+        //return ColumnType.LONG;
+        return getIntermediateType();
     }
 
     @Nullable
     @Override
     public Object finalizeComputation(@Nullable Object object) {
-        return object == null ? null : ((HistogramSketch) object).getTotalCount();
+        //return object == null ? null : ((HistogramSketch) object).getTotalCount();
+        return object;
     }
 
     @Override
@@ -250,9 +261,16 @@ public class HdrHistogramAggregatorFactory extends AggregatorFactory {
         return autoResize;
     }
 
+    /*
+    没这个方法了, 新版本需要实现getIntermediateType方法
     @Override
     public String getTypeName() {
         return HdrHistogramModule.HDRHISTOGRAM_TYPE_NAME;
+    }*/
+
+    @Override
+    public ColumnType getIntermediateType() {
+        return HdrHistogramModule.TYPE;
     }
 
     @Override

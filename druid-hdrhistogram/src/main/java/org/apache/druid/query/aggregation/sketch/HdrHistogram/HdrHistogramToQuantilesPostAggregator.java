@@ -9,6 +9,8 @@ import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.PostAggregator;
 import org.apache.druid.query.cache.CacheKeyBuilder;
+import org.apache.druid.segment.ColumnInspector;
+import org.apache.druid.segment.column.ColumnType;
 
 import javax.annotation.Nullable;
 import java.util.*;
@@ -27,6 +29,11 @@ public class HdrHistogramToQuantilesPostAggregator implements PostAggregator {
         this.name = name;
         this.fieldName = fieldName;
         this.probabilitys = probabilitys;
+    }
+
+    @Override
+    public ColumnType getType(ColumnInspector signature){
+        return ColumnType.LONG_ARRAY;
     }
 
     @Override

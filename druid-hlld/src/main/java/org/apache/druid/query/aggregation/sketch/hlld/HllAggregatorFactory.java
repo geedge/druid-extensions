@@ -170,7 +170,8 @@ public class HllAggregatorFactory extends AggregatorFactory {
 
     @Override
     public ColumnType getResultType() {
-        return round ? ColumnType.LONG : ColumnType.DOUBLE;
+        //return round ? ColumnType.LONG : ColumnType.DOUBLE;
+        return getIntermediateType();
     }
 
     @Nullable

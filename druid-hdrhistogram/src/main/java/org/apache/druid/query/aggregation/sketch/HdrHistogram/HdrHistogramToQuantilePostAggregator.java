@@ -9,6 +9,8 @@ import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.PostAggregator;
 import org.apache.druid.query.cache.CacheKeyBuilder;
+import org.apache.druid.segment.ColumnInspector;
+import org.apache.druid.segment.column.ColumnType;
 
 import javax.annotation.Nullable;
 import java.util.Comparator;
@@ -34,6 +36,11 @@ public class HdrHistogramToQuantilePostAggregator implements PostAggregator {
         if (probability < 0 || probability > 1) {
             throw new IAE("Illegal probability[%s], must be strictly between 0 and 1", probability);
         }
+    }
+
+    @Override
+    public ColumnType getType(ColumnInspector signature){
+        return ColumnType.LONG;
     }
 
     @Override
