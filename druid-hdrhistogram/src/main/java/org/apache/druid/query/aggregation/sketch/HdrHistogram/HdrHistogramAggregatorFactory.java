@@ -214,6 +214,9 @@ public class HdrHistogramAggregatorFactory extends AggregatorFactory {
 
     @Override
     public Object deserialize(Object object) {
+        if (object == null) {
+            return null;
+        }
         return HistogramUtils.deserializeHistogram(object);
     }
 

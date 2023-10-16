@@ -165,6 +165,9 @@ public class HllAggregatorFactory extends AggregatorFactory {
 
     @Override
     public Object deserialize(Object object) {
+        if (object == null) {
+            return null;
+        }
         return HllUtils.deserializeHll(object);
     }
 
