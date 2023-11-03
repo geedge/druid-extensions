@@ -179,6 +179,63 @@ public class HllApproxCountDistinctSqlAggregatorTest extends BaseCalciteQueryTes
         }
     }
 
+    @Test
+    public void testSqlQuery5() throws Exception {
+        //cannotVectorize();
+        //String sql = "select HLLD_ESTIMATE(HLLD(hll_dim1)) from druid.foo  where dim1 = ''";
+        String sql = "select dim1,APPROX_COUNT_DISTINCT_HLLD(hll, 12) from (select dim1,HLLD(hll_dim1) hll from druid.foo where dim1 = '1' group by dim1) t group by dim1";
+        QueryTestBuilder builder = testBuilder().sql(sql).skipVectorize();
+        builder.run();
+        QueryTestRunner.QueryResults queryResults = builder.results();
+        List<Object[]> results = queryResults.results;
+        for (Object[] result : results) {
+            System.out.println(Arrays.toString(result));
+        }
+    }
+
+    @Test
+    public void testSqlQuery6() throws Exception {
+        //cannotVectorize();
+        //String sql = "select HLLD_ESTIMATE(HLLD(hll_dim1)) from druid.foo  where dim1 = ''";
+        String sql = "select dim1,APPROX_COUNT_DISTINCT_HLLD(hll, 12) from (select dim1,HLLD(dim1) hll from druid.foo where dim1 = '1' group by dim1 limit 10) t group by dim1";
+        //String sql = "select dim1,HLLD_ESTIMATE(HLLD(hll), false) from (select dim1,HLLD(dim1) hll from druid.foo where dim1 = '1' group by dim1 limit 10) t group by dim1";
+        QueryTestBuilder builder = testBuilder().sql(sql).skipVectorize();
+        builder.run();
+        QueryTestRunner.QueryResults queryResults = builder.results();
+        List<Object[]> results = queryResults.results;
+        for (Object[] result : results) {
+            System.out.println(Arrays.toString(result));
+        }
+    }
+
+    @Test
+    public void testSqlQuery62() throws Exception {
+        //cannotVectorize();
+        //String sql = "select HLLD_ESTIMATE(HLLD(hll_dim1)) from druid.foo  where dim1 = ''";
+        String sql = "select dim1,APPROX_COUNT_DISTINCT_HLLD(hll) from (select dim1,HLLD(dim1) hll from druid.foo where dim1 = '1' group by dim1 limit 10) t group by dim1";
+        QueryTestBuilder builder = testBuilder().sql(sql).skipVectorize();
+        builder.run();
+        QueryTestRunner.QueryResults queryResults = builder.results();
+        List<Object[]> results = queryResults.results;
+        for (Object[] result : results) {
+            System.out.println(Arrays.toString(result));
+        }
+    }
+
+    @Test
+    public void testSqlQuery7() throws Exception {
+        //cannotVectorize();
+        //String sql = "select HLLD_ESTIMATE(HLLD(hll_dim1)) from druid.foo  where dim1 = ''";
+        String sql = "select dim1,APPROX_COUNT_DISTINCT_HLLD(hll, 12) from (select dim1,HLLD(dim1) hll from druid.foo where dim1 = '1' group by dim1) t group by dim1  limit 10";
+        QueryTestBuilder builder = testBuilder().sql(sql).skipVectorize();
+        builder.run();
+        QueryTestRunner.QueryResults queryResults = builder.results();
+        List<Object[]> results = queryResults.results;
+        for (Object[] result : results) {
+            System.out.println(Arrays.toString(result));
+        }
+    }
+
    @Test
     public void testAgg() throws Exception {
         final String sql = "SELECT\n"

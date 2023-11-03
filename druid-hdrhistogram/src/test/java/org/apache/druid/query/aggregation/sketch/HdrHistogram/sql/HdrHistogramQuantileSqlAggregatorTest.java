@@ -144,7 +144,7 @@ public class HdrHistogramQuantileSqlAggregatorTest extends BaseCalciteQueryTest 
             CalciteTests.getJsonMapper().registerModule(mod);
             TestHelper.JSON_MAPPER.registerModule(mod);
         }
-        final QueryableIndex index = TestHelper.getTestIndexIO().loadIndex(new File("D:/doc/datas/testIndex-6201298"));
+        //final QueryableIndex index = TestHelper.getTestIndexIO().loadIndex(new File("D:/doc/datas/testIndex-6201298"));
         /*final QueryableIndex index = IndexBuilder.create()
                 .tmpDir(temporaryFolder.newFolder())
                 .segmentWriteOutMediumFactory(OffHeapMemorySegmentWriteOutMediumFactory.instance())
@@ -169,16 +169,54 @@ public class HdrHistogramQuantileSqlAggregatorTest extends BaseCalciteQueryTest 
                 .rows(ROWS1)
                 .buildMMappedIndex();*/
 
-        return new SpecificSegmentsQuerySegmentWalker(conglomerate).add(
-                DataSegment.builder()
-                        .dataSource(CalciteTests.DATASOURCE1)
-                        .interval(index.getDataInterval())
-                        .version("1")
-                        .shardSpec(new LinearShardSpec(0))
-                        .size(0)
-                        .build(),
-                index
-        );
+        String[] files = new String[]{
+                "D:\\doc\\datas\\statistics_rule_segments\\2023-10-16T00_00_00.000Z_2023-10-17T00_00_00.000Z\\2023-10-16T07_51_47.981Z\\0\\17a457e4-599d-49c2-86e7-6655851bb99a\\index",
+                "D:\\doc\\datas\\statistics_rule_segments\\2023-10-15T00_00_00.000Z_2023-10-16T00_00_00.000Z\\2023-10-15T00_00_04.240Z\\15\\9a766f6c-779d-4f9f-9ff5-6a12c19b8c6c\\index"
+        };
+        files = new String[]{
+                "D:/doc/datas/testIndex-6201298"
+        };
+        SpecificSegmentsQuerySegmentWalker walker = new SpecificSegmentsQuerySegmentWalker(conglomerate);
+
+        for (int i = 0; i < files.length; i++) {
+            QueryableIndex index = TestHelper.getTestIndexIO().loadIndex(new File(files[i]));
+            return walker.add(
+                    DataSegment.builder()
+                            .dataSource(CalciteTests.DATASOURCE1)
+                            .interval(index.getDataInterval())
+                            .version("1")
+                            .shardSpec(new LinearShardSpec(i))
+                            .size(0)
+                            .build(),
+                    index
+            );
+        }
+
+        return walker;
+    }
+
+    @Test
+    public void testCount0() throws Exception {
+        String sql = "select count(1) cnt, APPROX_QUANTILE_HDR(hist_m1, 0.5, 1, 100, 2) from druid.foo where dim1 = 'aaa'";
+        QueryTestBuilder builder = testBuilder().sql(sql).skipVectorize();
+        builder.run();
+        QueryTestRunner.QueryResults queryResults = builder.results();
+        List<Object[]> results = queryResults.results;
+        for (Object[] result : results) {
+            System.out.println(Arrays.toString(result));
+        }
+    }
+
+    @Test
+    public void testSqlQueryError() throws Exception {
+        String sql = "select min(__time) min_time,max(__time) max_time, HDR_HISTOGRAM(latency_ms_sketch) hdr from druid.foo";
+        QueryTestBuilder builder = testBuilder().sql(sql).skipVectorize();
+        builder.run();
+        QueryTestRunner.QueryResults queryResults = builder.results();
+        List<Object[]> results = queryResults.results;
+        for (Object[] result : results) {
+            System.out.println(Arrays.toString(result));
+        }
     }
 
     @Test
@@ -204,6 +242,62 @@ public class HdrHistogramQuantileSqlAggregatorTest extends BaseCalciteQueryTest 
                 values[j] = results.get(j)[i];
             }
             System.out.println(columns[i] + ":" + Arrays.toString(values));
+        }
+    }
+
+    @Test
+    public void testSqlQuery3() throws Exception {
+        //cannotVectorize();
+        //String sql = "select HLLD_ESTIMATE(HLLD(hll_dim1)) from druid.foo  where dim1 = ''";
+        String sql = "select HDR_HISTOGRAM(hist_m1) hdr from druid.foo ";
+        QueryTestBuilder builder = testBuilder().sql(sql).skipVectorize();
+        builder.run();
+        QueryTestRunner.QueryResults queryResults = builder.results();
+        List<Object[]> results = queryResults.results;
+        for (Object[] result : results) {
+            System.out.println(Arrays.toString(result));
+        }
+    }
+    @Test
+    public void testSqlQuery4() throws Exception {
+        //cannotVectorize();
+        //String sql = "select HLLD_ESTIMATE(HLLD(hll_dim1)) from druid.foo  where dim1 = ''";
+        String sql = "select APPROX_QUANTILE_HDR (hdr, 0.95) as p95th_tcp_latency_ms from (select HDR_HISTOGRAM(hist_m1) hdr from druid.foo) t ";
+        QueryTestBuilder builder = testBuilder().sql(sql).skipVectorize();
+        builder.run();
+        QueryTestRunner.QueryResults queryResults = builder.results();
+        List<Object[]> results = queryResults.results;
+        for (Object[] result : results) {
+            System.out.println(Arrays.toString(result));
+        }
+    }
+
+    @Test
+    public void testSqlQuery5() throws Exception {
+        //cannotVectorize();
+        //String sql = "select HLLD_ESTIMATE(HLLD(hll_dim1)) from druid.foo  where dim1 = ''";
+        String sql = "select dim1, APPROX_QUANTILE_HDR (hdr, 0.95) as p95th_tcp_latency_ms from (select dim1, HDR_HISTOGRAM(hist_m1) hdr from druid.foo group by dim1) t group by dim1";
+        QueryTestBuilder builder = testBuilder().sql(sql).skipVectorize();
+        builder.run();
+        QueryTestRunner.QueryResults queryResults = builder.results();
+        List<Object[]> results = queryResults.results;
+        for (Object[] result : results) {
+            System.out.println(Arrays.toString(result));
+        }
+    }
+
+    @Test
+    public void testSqlQuery6() throws Exception {
+        //cannotVectorize();
+        //String sql = "select HLLD_ESTIMATE(HLLD(hll_dim1)) from druid.foo  where dim1 = ''";
+        //String sql = "select dim1, APPROX_QUANTILE_HDR (hdr, 0.95) as p95th_tcp_latency_ms from (select dim1, HDR_HISTOGRAM(hist_m1) hdr from druid.foo group by dim1 limit 10) t group by dim1";
+        String sql = "select dim1, HDR_GET_QUANTILES(HDR_HISTOGRAM(hdr), 0.95) as p95th_tcp_latency_ms from (select dim1, HDR_HISTOGRAM(hist_m1) hdr from druid.foo group by dim1 limit 10) t group by dim1";
+        QueryTestBuilder builder = testBuilder().sql(sql).skipVectorize();
+        builder.run();
+        QueryTestRunner.QueryResults queryResults = builder.results();
+        List<Object[]> results = queryResults.results;
+        for (Object[] result : results) {
+            System.out.println(Arrays.toString(result));
         }
     }
 
