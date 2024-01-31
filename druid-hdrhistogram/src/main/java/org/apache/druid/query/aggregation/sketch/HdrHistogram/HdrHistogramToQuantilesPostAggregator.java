@@ -56,7 +56,11 @@ public class HdrHistogramToQuantilesPostAggregator implements PostAggregator {
     @Override
     public Object compute(Map<String, Object> values) {
         HistogramSketch histogram = (HistogramSketch) values.get(fieldName);
-        final long[] counts = new long[probabilitys.length];
+        if(histogram == null){
+            //return null;
+            return new Long[probabilitys.length];
+        }
+        final Long[] counts = new Long[probabilitys.length];
         for (int i = 0; i < probabilitys.length; i++) {
             counts[i] = histogram.getValueAtPercentile(probabilitys[i] * 100);
         }

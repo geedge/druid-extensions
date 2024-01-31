@@ -28,6 +28,7 @@ public class HllAggregatorFactory extends AggregatorFactory {
     protected final String fieldName;
     protected final int precision;
     protected final boolean round;
+    protected final int updatableSerializationBytes;
 
     public HllAggregatorFactory(
             @JsonProperty("name") final String name,
@@ -45,6 +46,7 @@ public class HllAggregatorFactory extends AggregatorFactory {
         this.fieldName = fieldName;
         this.precision = precision == null ? DEFAULT_PRECISION : precision;
         this.round = round == null ? DEFAULT_ROUND : round;
+        this.updatableSerializationBytes = getUpdatableSerializationBytes();
     }
 
     @Override
@@ -236,6 +238,10 @@ public class HllAggregatorFactory extends AggregatorFactory {
 
     @Override
     public int getMaxIntermediateSize() {
+        return updatableSerializationBytes == 0? getUpdatableSerializationBytes():updatableSerializationBytes;
+    }
+
+    protected int getUpdatableSerializationBytes(){
         return Hll.getUpdatableSerializationBytes(precision);
     }
 

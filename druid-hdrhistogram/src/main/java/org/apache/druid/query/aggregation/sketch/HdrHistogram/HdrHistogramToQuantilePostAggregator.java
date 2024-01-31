@@ -62,6 +62,9 @@ public class HdrHistogramToQuantilePostAggregator implements PostAggregator {
     @Override
     public Object compute(Map<String, Object> values) {
         HistogramSketch histogram = (HistogramSketch) values.get(fieldName);
+        if(histogram == null){
+            return null;
+        }
         return histogram.getValueAtPercentile(probability * 100);
     }
 

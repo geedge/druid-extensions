@@ -67,7 +67,7 @@ public class HllMergeAggregatorFactory extends HllAggregatorFactory{
     }
 
     @Override
-    public int getMaxIntermediateSize() {
+    protected int getUpdatableSerializationBytes() {
         return HllUnion.getUpdatableSerializationBytes(precision);
     }
 }

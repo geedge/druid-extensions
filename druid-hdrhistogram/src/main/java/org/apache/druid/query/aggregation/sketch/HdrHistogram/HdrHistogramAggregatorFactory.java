@@ -31,6 +31,7 @@ public class HdrHistogramAggregatorFactory extends AggregatorFactory {
     protected final long highestTrackableValue;
     protected final int numberOfSignificantValueDigits;
     protected final boolean autoResize; //默认是false
+    protected final int updatableSerializationBytes;
 
     public HdrHistogramAggregatorFactory(
             @JsonProperty("name") String name,
@@ -80,6 +81,7 @@ public class HdrHistogramAggregatorFactory extends AggregatorFactory {
         this.highestTrackableValue = highestTrackableValue;
         this.numberOfSignificantValueDigits = numberOfSignificantValueDigits;
         this.autoResize = autoResize;
+        this.updatableSerializationBytes = getUpdatableSerializationBytes();
     }
 
     @Override
@@ -284,6 +286,10 @@ public class HdrHistogramAggregatorFactory extends AggregatorFactory {
 
     @Override
     public int getMaxIntermediateSize() {
+        return updatableSerializationBytes == 0? getUpdatableSerializationBytes():updatableSerializationBytes;
+    }
+
+    private int getUpdatableSerializationBytes(){
         if(!autoResize){
             /*Histogram histogram = new Histogram(lowestDiscernibleValue, highestTrackableValue, numberOfSignificantValueDigits);
             histogram.setAutoResize(autoResize);

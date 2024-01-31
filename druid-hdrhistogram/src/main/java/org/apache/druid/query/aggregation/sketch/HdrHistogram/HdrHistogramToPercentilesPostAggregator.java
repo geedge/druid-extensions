@@ -56,6 +56,9 @@ public class HdrHistogramToPercentilesPostAggregator implements PostAggregator {
     @Override
     public Object compute(Map<String, Object> values) {
         HistogramSketch histogram = (HistogramSketch) values.get(fieldName);
+        if(histogram == null){
+            return "[]"; //"[]"
+        }
         List<Percentile> percentiles = histogram.percentileList(percentileTicksPerHalfDistance);
         return HdrHistogramModule.toJson(percentiles);
     }

@@ -66,6 +66,9 @@ public class HllToEstimatePostAggregator implements PostAggregator {
     @Override
     public Object compute(final Map<String, Object> combinedAggregators) {
         final Hll sketch = (Hll) field.compute(combinedAggregators);
+        if(sketch == null){
+            return round ? 0L: 0D;
+        }
         return round ? Math.round(sketch.size()) : sketch.size();
     }
 

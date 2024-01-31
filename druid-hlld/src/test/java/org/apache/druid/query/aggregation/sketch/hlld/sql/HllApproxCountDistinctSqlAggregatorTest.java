@@ -95,6 +95,7 @@ public class HllApproxCountDistinctSqlAggregatorTest extends BaseCalciteQueryTes
     public void testSqlQuery() throws Exception {
         // Can't vectorize due to SUBSTRING expression.
         cannotVectorize();
+
         String[] columns = new String[]{"__time", "dim1", "dim2", "dim3", "cnt", "hll_dim1", "m1"};
 
         String sql = "select " + String.join(",", columns) + " from druid.foo";
@@ -117,6 +118,38 @@ public class HllApproxCountDistinctSqlAggregatorTest extends BaseCalciteQueryTes
                 values[j] = results.get(j)[i];
             }
             System.out.println(columns[i] + ":" + Arrays.toString(values));
+        }
+    }
+
+    @Test
+    public void testSqlQuery11() throws Exception {
+        // Can't vectorize due to SUBSTRING expression.
+        //cannotVectorize();
+
+
+        String sql = "select HLLD(hll_dim1) hll_dim1 from (select hll_dim1 from druid.foo limit 5) t  ";
+        //sql = "select HLLD(hll_dim1) hll_dim1 from  druid.foo t  ";
+        QueryTestBuilder builder = testBuilder().sql(sql).skipVectorize();;
+        builder.run();
+        QueryTestRunner.QueryResults queryResults = builder.results();
+        List<Object[]> results = queryResults.results;
+        for (Object[] result : results) {
+            System.out.println(Arrays.toString(result));
+        }
+    }
+
+    @Test
+    public void testSqlQuery12() throws Exception {
+        // Can't vectorize due to SUBSTRING expression.
+        cannotVectorize();
+
+        String sql = "select * from (select * from druid.foo limit 6) t where __time >= '1970-12-15 07:00:28' and __time < '2023-12-15 08:10:28' ";
+        QueryTestBuilder builder = testBuilder().sql(sql);
+        builder.run();
+        QueryTestRunner.QueryResults queryResults = builder.results();
+        List<Object[]> results = queryResults.results;
+        for (Object[] result : results) {
+            System.out.println(Arrays.toString(result));
         }
     }
 
