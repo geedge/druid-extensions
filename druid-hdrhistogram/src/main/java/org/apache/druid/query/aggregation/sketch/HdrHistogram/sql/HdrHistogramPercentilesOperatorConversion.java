@@ -14,16 +14,16 @@ import org.apache.druid.query.aggregation.sketch.HdrHistogram.HdrHistogramToPerc
 import org.apache.druid.query.aggregation.PostAggregator;
 import org.apache.druid.query.aggregation.post.FieldAccessPostAggregator;
 import org.apache.druid.segment.column.RowSignature;
-import org.apache.druid.sql.calcite.expression.DirectOperatorConversion;
 import org.apache.druid.sql.calcite.expression.DruidExpression;
 import org.apache.druid.sql.calcite.expression.OperatorConversions;
 import org.apache.druid.sql.calcite.expression.PostAggregatorVisitor;
+import org.apache.druid.sql.calcite.expression.SqlOperatorConversion;
 import org.apache.druid.sql.calcite.planner.PlannerContext;
 
 import javax.annotation.Nullable;
 import java.util.List;
 
-public class HdrHistogramPercentilesOperatorConversion extends DirectOperatorConversion {
+public class HdrHistogramPercentilesOperatorConversion implements SqlOperatorConversion {
     private static final String FUNCTION_NAME = "HDR_GET_PERCENTILES";
     private static final SqlFunction SQL_FUNCTION = OperatorConversions
             .operatorBuilder(StringUtils.toUpperCase(FUNCTION_NAME))
@@ -31,10 +31,6 @@ public class HdrHistogramPercentilesOperatorConversion extends DirectOperatorCon
             .requiredOperands(1)
             .returnTypeInference(ReturnTypes.explicit(SqlTypeName.VARCHAR))
             .build();
-
-    public HdrHistogramPercentilesOperatorConversion() {
-        super(SQL_FUNCTION, FUNCTION_NAME);
-    }
 
     @Override
     public SqlOperator calciteOperator()
@@ -66,7 +62,8 @@ public class HdrHistogramPercentilesOperatorConversion extends DirectOperatorCon
                 plannerContext,
                 rowSignature,
                 operands.get(0),
-                postAggregatorVisitor
+                postAggregatorVisitor,
+                true
         );
 
         if (postAgg == null) {

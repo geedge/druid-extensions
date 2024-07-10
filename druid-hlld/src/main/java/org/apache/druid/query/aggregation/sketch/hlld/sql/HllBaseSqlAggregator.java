@@ -2,6 +2,7 @@ package org.apache.druid.query.aggregation.sketch.hlld.sql;
 
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Project;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
@@ -14,6 +15,7 @@ import org.apache.druid.query.aggregation.sketch.hlld.HllMergeAggregatorFactory;
 import org.apache.druid.query.dimension.DefaultDimensionSpec;
 import org.apache.druid.query.dimension.DimensionSpec;
 import org.apache.druid.segment.VirtualColumn;
+import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
 import org.apache.druid.segment.column.ValueType;
 import org.apache.druid.sql.calcite.aggregation.Aggregation;
@@ -29,6 +31,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 public abstract class HllBaseSqlAggregator implements SqlAggregator {
+
+  private final boolean finalizeSketch;
+
+  protected HllBaseSqlAggregator(boolean finalizeSketch){
+    this.finalizeSketch = finalizeSketch;
+  }
+
     @Nullable
     @Override
     public Aggregation toDruidAggregation(
@@ -93,13 +102,14 @@ public abstract class HllBaseSqlAggregator implements SqlAggregator {
           round = HllAggregatorFactory.DEFAULT_ROUND;
         }
 
-        final List<VirtualColumn> virtualColumns = new ArrayList<>();
+        // 新版本删除了final List<VirtualColumn> virtualColumns = new ArrayList<>();
         final AggregatorFactory aggregatorFactory;
-        final String aggregatorName = finalizeAggregations ? Calcites.makePrefixedName(name, "a") : name;
+        //final String aggregatorName = finalizeAggregations ? Calcites.makePrefixedName(name, "a") : name;
+        final String aggregatorName = finalizeSketch ? Calcites.makePrefixedName(name, "a") : name;
 
-        // 输入是Cpc，返回HllMergeAggregatorFactory
+        // 输入是Hll，返回HllSketchMergeAggregatorFactory
         if (columnArg.isDirectColumnAccess()
-                && rowSignature.getColumnType(columnArg.getDirectColumn()).orElse(null) == ValueType.COMPLEX) {
+                && rowSignature.getColumnType(columnArg.getDirectColumn()).map(type -> type.is(ValueType.COMPLEX)).orElse(false)) {
             // 这就是具体的聚合函数吧
             aggregatorFactory = new HllMergeAggregatorFactory(
                     aggregatorName,
@@ -109,10 +119,10 @@ public abstract class HllBaseSqlAggregator implements SqlAggregator {
             );
         } else {
             // 输入是regular column，HllBuildAggregatorFactory
-            final SqlTypeName sqlTypeName = columnRexNode.getType().getSqlTypeName();
-            final ValueType inputType = Calcites.getValueTypeForSqlTypeName(sqlTypeName);
+            final RelDataType dataType = columnRexNode.getType();
+            final ColumnType inputType = Calcites.getColumnTypeForRelDataType(dataType);
             if (inputType == null) {
-                throw new ISE("Cannot translate sqlTypeName[%s] to Druid type for field[%s]", sqlTypeName, aggregatorName);
+                throw new ISE("Cannot translate sqlTypeName[%s] to Druid type for field[%s]", dataType.getSqlTypeName(), aggregatorName);
             }
 
             final DimensionSpec dimensionSpec;
@@ -120,27 +130,34 @@ public abstract class HllBaseSqlAggregator implements SqlAggregator {
             if (columnArg.isDirectColumnAccess()) {
                 dimensionSpec = columnArg.getSimpleExtraction().toDimensionSpec(null, inputType);
             } else {
-                VirtualColumn virtualColumn = virtualColumnRegistry.getOrCreateVirtualColumnForExpression(
-                        plannerContext,
+                String virtualColumnName = virtualColumnRegistry.getOrCreateVirtualColumnForExpression(
                         columnArg,
-                        sqlTypeName
+                        dataType
                 );
-                dimensionSpec = new DefaultDimensionSpec(virtualColumn.getOutputName(), null, inputType);
-                virtualColumns.add(virtualColumn);
+                dimensionSpec = new DefaultDimensionSpec(virtualColumnName, null, inputType);
             }
 
-            aggregatorFactory = new HllAggregatorFactory(
-                    aggregatorName,
-                    dimensionSpec.getDimension(),
-                    precision,
-                    round
-            );
+            // 新版本的判断，输入是Hll
+            if (inputType.is(ValueType.COMPLEX)) {
+                aggregatorFactory = new HllMergeAggregatorFactory(
+                        aggregatorName,
+                        dimensionSpec.getOutputName(),
+                        precision,
+                        round
+                );
+            } else {
+                aggregatorFactory = new HllAggregatorFactory(
+                        aggregatorName,
+                        dimensionSpec.getDimension(),
+                        precision,
+                        round
+                );
+            }
         }
 
         return toAggregation(
                 name,
-                finalizeAggregations,
-                virtualColumns,
+                finalizeSketch,
                 aggregatorFactory
         );
     }
@@ -148,7 +165,6 @@ public abstract class HllBaseSqlAggregator implements SqlAggregator {
     protected abstract Aggregation toAggregation(
             String name,
             boolean finalizeAggregations,
-            List<VirtualColumn> virtualColumns,
             AggregatorFactory aggregatorFactory
     );
 }

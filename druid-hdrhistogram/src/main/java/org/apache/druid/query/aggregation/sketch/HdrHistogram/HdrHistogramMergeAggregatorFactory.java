@@ -1,9 +1,9 @@
 package org.apache.druid.query.aggregation.sketch.HdrHistogram;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramSketch;
 import org.apache.druid.query.aggregation.Aggregator;
+import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.BufferAggregator;
 import org.apache.druid.query.cache.CacheKeyBuilder;
 import org.apache.druid.segment.ColumnSelectorFactory;
@@ -46,6 +46,11 @@ public class HdrHistogramMergeAggregatorFactory extends HdrHistogramAggregatorFa
                 autoResize,
                 getMaxIntermediateSize()
         );
+    }
+
+    @Override
+    public AggregatorFactory withName(String newName) {
+        return new HdrHistogramMergeAggregatorFactory(newName, fieldName, lowestDiscernibleValue, highestTrackableValue, numberOfSignificantValueDigits, autoResize);
     }
 
     @Override
