@@ -13,16 +13,15 @@ import org.apache.druid.query.aggregation.PostAggregator;
 import org.apache.druid.query.aggregation.sketch.hlld.HllAggregatorFactory;
 import org.apache.druid.query.aggregation.sketch.hlld.HllToEstimatePostAggregator;
 import org.apache.druid.segment.column.RowSignature;
-import org.apache.druid.sql.calcite.expression.DirectOperatorConversion;
-import org.apache.druid.sql.calcite.expression.DruidExpression;
-import org.apache.druid.sql.calcite.expression.OperatorConversions;
-import org.apache.druid.sql.calcite.expression.PostAggregatorVisitor;
+import org.apache.druid.sql.calcite.expression.*;
 import org.apache.druid.sql.calcite.planner.PlannerContext;
 
 import javax.annotation.Nullable;
 import java.util.List;
 
-public class HllEstimateOperatorConversion extends DirectOperatorConversion {
+// postAggregator, toDruidExpression返回null。相当于post udf和普通udf是不一样的。
+// 新版本直接修改了父类
+public class HllEstimateOperatorConversion implements SqlOperatorConversion {
     private static final String FUNCTION_NAME = "HLLD_ESTIMATE";
     private static final SqlFunction SQL_FUNCTION = OperatorConversions
             .operatorBuilder(StringUtils.toUpperCase(FUNCTION_NAME))
@@ -32,9 +31,7 @@ public class HllEstimateOperatorConversion extends DirectOperatorConversion {
             .returnTypeInference(ReturnTypes.DOUBLE)
             .build();
 
-    public HllEstimateOperatorConversion() {
-        super(SQL_FUNCTION, FUNCTION_NAME);
-    }
+    // 新版本少了构造函数
 
     @Override
     public SqlOperator calciteOperator() {
@@ -63,7 +60,8 @@ public class HllEstimateOperatorConversion extends DirectOperatorConversion {
                 plannerContext,
                 rowSignature,
                 operands.get(0),
-                postAggregatorVisitor
+                postAggregatorVisitor,
+                true // 新版本多了个参数
         );
 
         if (firstOperand == null) {

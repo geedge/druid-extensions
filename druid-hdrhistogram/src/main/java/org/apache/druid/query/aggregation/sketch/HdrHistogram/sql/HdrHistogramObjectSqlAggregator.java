@@ -18,6 +18,7 @@ import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.sketch.HdrHistogram.HdrHistogramAggregatorFactory;
 import org.apache.druid.query.aggregation.sketch.HdrHistogram.HdrHistogramMergeAggregatorFactory;
 import org.apache.druid.segment.VirtualColumn;
+import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.column.RowSignature;
 import org.apache.druid.segment.column.ValueType;
 import org.apache.druid.sql.calcite.aggregation.Aggregation;
@@ -118,11 +119,11 @@ public class HdrHistogramObjectSqlAggregator implements SqlAggregator {
         }
 
         // No existing match found. Create a new one.
-        final List<VirtualColumn> virtualColumns = new ArrayList<>();
+        // 新版本删除了final List<VirtualColumn> virtualColumns = new ArrayList<>();
 
         if (input.isDirectColumnAccess()) {
             // 参数是Histogram对象
-            if (rowSignature.getColumnType(input.getDirectColumn()).orElse(null) == ValueType.COMPLEX) {
+            if (rowSignature.getColumnType(input.getDirectColumn()).map(type -> type.is(ValueType.COMPLEX)).orElse(false)) {
                 aggregatorFactory = new HdrHistogramMergeAggregatorFactory(
                         histogramName,
                         input.getDirectColumn(),
@@ -142,12 +143,11 @@ public class HdrHistogramObjectSqlAggregator implements SqlAggregator {
                 );
             }
         } else {
-            final VirtualColumn virtualColumn =
-                    virtualColumnRegistry.getOrCreateVirtualColumnForExpression(plannerContext, input, SqlTypeName.BIGINT);
-            virtualColumns.add(virtualColumn);
+            final String virtualColumnName =
+                    virtualColumnRegistry.getOrCreateVirtualColumnForExpression(input, ColumnType.LONG);
             aggregatorFactory = new HdrHistogramAggregatorFactory(
                     histogramName,
-                    virtualColumn.getOutputName(),
+                    virtualColumnName,
                     lowestDiscernibleValue,
                     highestTrackableValue,
                     numberOfSignificantValueDigits,
@@ -156,7 +156,6 @@ public class HdrHistogramObjectSqlAggregator implements SqlAggregator {
         }
 
         return Aggregation.create(
-                virtualColumns,
                 ImmutableList.of(aggregatorFactory),
                 null
         );

@@ -62,50 +62,30 @@ public class HdrHistogramQuantilesOperatorConversion implements SqlOperatorConve
     {
         final List<RexNode> operands = ((RexCall) rexNode).getOperands();
         final float[] args = new float[operands.size() - 1];
-        PostAggregator postAgg = null;
 
-        int operandCounter = 0;
-        for (RexNode operand : operands) {
-            final PostAggregator convertedPostAgg = OperatorConversions.toPostAggregator(
-                    plannerContext,
-                    rowSignature,
-                    operand,
-                    postAggregatorVisitor
-            );
-            if (convertedPostAgg == null) {
-                if (operandCounter > 0) {
-                    try {
-                        if (!operand.isA(SqlKind.LITERAL)) {
-                            return null;
-                        }
-                        float arg = ((Number) RexLiteral.value(operand)).floatValue();
-                        args[operandCounter - 1] = arg;
-                    }
-                    catch (ClassCastException cce) {
-                        return null;
-                    }
-                } else {
-                    return null;
-                }
-            } else {
-                if (operandCounter == 0) {
-                    postAgg = convertedPostAgg;
-                } else {
-                    if (!operand.isA(SqlKind.LITERAL)) {
-                        return null;
-                    }
-                }
-            }
-            operandCounter++;
+        // 新版本直接就从第一个参数取
+        final PostAggregator inputSketchPostAgg = OperatorConversions.toPostAggregator(
+                plannerContext,
+                rowSignature,
+                operands.get(0),
+                postAggregatorVisitor,
+                true
+        );
+
+        if (inputSketchPostAgg == null) {
+            return null;
         }
 
-        if (postAgg == null) {
-            return null;
+        // 直接解析
+        for (int i = 1; i < operands.size(); i++) {
+            RexNode operand = operands.get(i);
+            float arg = ((Number) RexLiteral.value(operand)).floatValue();
+            args[i - 1] = arg;
         }
 
         return new HdrHistogramToQuantilesPostAggregator(
                 postAggregatorVisitor.getOutputNamePrefix() + postAggregatorVisitor.getAndIncrementCounter(),
-                ((FieldAccessPostAggregator)postAgg).getFieldName(),
+                ((FieldAccessPostAggregator)inputSketchPostAgg).getFieldName(),
                 args
         );
     }

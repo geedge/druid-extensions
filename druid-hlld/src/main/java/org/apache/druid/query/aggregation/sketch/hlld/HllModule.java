@@ -10,6 +10,7 @@ import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.query.aggregation.sketch.hlld.sql.HllApproxCountDistinctSqlAggregator;
 import org.apache.druid.query.aggregation.sketch.hlld.sql.HllEstimateOperatorConversion;
 import org.apache.druid.query.aggregation.sketch.hlld.sql.HllObjectSqlAggregator;
+import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.serde.ComplexMetrics;
 import org.apache.druid.sql.guice.SqlBindings;
 
@@ -24,6 +25,9 @@ public class HllModule implements DruidModule {
 
     public static final String HLLD_TYPE_NAME = "HLLDSketch";
     public static final String HLLD_BUILD_TYPE_NAME = "HLLDSketchBuild";
+    public static final ColumnType TYPE = ColumnType.ofComplex(HLLD_TYPE_NAME);
+    public static final ColumnType BUILD_TYPE = ColumnType.ofComplex(HLLD_BUILD_TYPE_NAME);
+
 
     @Override
     public void configure(Binder binder) {
