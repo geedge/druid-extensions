@@ -21,7 +21,7 @@ public class HdrHistogramAggregatorFactory extends AggregatorFactory {
     public static final long DEFAULT_HIGHEST = 2;
     public static final int DEFAULT_SIGNIFICANT = 1;
     public static final boolean DEFAULT_AUTO_RESIZE = true;
-    public static final long BUFFER_AUTO_RESIZE_HIGHEST = 100000000L * 1000000L;
+    public static final long BUFFER_AUTO_RESIZE_HIGHEST = 100000000L * 100L;
     public static final Comparator<HistogramSketch> COMPARATOR =
             Comparator.nullsFirst(Comparator.comparingLong(HistogramSketch::getTotalCount));
 

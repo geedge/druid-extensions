@@ -3,6 +3,7 @@ package org.HdrHistogram;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.List;
+import java.util.Map;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 
@@ -443,6 +444,11 @@ public class DirectMapHistogram implements Histogramer{
 
     @Override
     public List<Percentile> percentileList(int percentileTicksPerHalfDistance) {
+        throw new UnsupportedOperationException("unsupported method");
+    }
+
+    @Override
+    public Map<String, Object> describe() {
         throw new UnsupportedOperationException("unsupported method");
     }
 

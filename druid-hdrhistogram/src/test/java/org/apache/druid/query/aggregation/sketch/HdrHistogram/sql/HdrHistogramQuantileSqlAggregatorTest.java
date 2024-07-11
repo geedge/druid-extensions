@@ -220,6 +220,30 @@ public class HdrHistogramQuantileSqlAggregatorTest extends BaseCalciteQueryTest 
     }
 
     @Test
+    public void testSqlDESCRIBE() throws Exception {
+        String sql = "select HDR_GET_QUANTILES(HDR_HISTOGRAM(m1, 1, 100, 2), 0, 0.25, 0.5, 0.75, 1) a, HDR_DESCRIBE(HDR_HISTOGRAM(m1, 1, 100, 2)) b, HDR_DESCRIBE(HDR_HISTOGRAM(hist_m1, 1, 100, 2)) c from druid.foo";
+        QueryTestBuilder builder = testBuilder().sql(sql).skipVectorize();
+        builder.run();
+        QueryTestRunner.QueryResults queryResults = builder.results();
+        List<Object[]> results = queryResults.results;
+        for (Object[] result : results) {
+            System.out.println(Arrays.toString(result));
+        }
+    }
+
+    @Test
+    public void testSqlDESCRIBE2() throws Exception {
+        String sql = "select HDR_GET_QUANTILES(HDR_HISTOGRAM(m1, 1, 100, 2), 0, 0.25, 0.5, 0.75, 1) a, HDR_GET_PERCENTILES_DESCRIPTION(HDR_HISTOGRAM(m1, 1, 100, 2)) b, HDR_GET_PERCENTILES_DESCRIPTION(HDR_HISTOGRAM(hist_m1, 1, 100, 2)) c from druid.foo";
+        QueryTestBuilder builder = testBuilder().sql(sql).skipVectorize();
+        builder.run();
+        QueryTestRunner.QueryResults queryResults = builder.results();
+        List<Object[]> results = queryResults.results;
+        for (Object[] result : results) {
+            System.out.println(Arrays.toString(result));
+        }
+    }
+
+    @Test
     public void testSqlQuery() throws Exception {
         String[] columns = new String[]{"__time", "dim1", "dim2", "dim3", "cnt", "hist_m1", "m1"};
         String sql = "select " + String.join(",", columns) + " from druid.foo";

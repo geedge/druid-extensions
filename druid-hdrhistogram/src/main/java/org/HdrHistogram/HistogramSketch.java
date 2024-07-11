@@ -2,6 +2,7 @@ package org.HdrHistogram;
 
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Map;
 
 public class HistogramSketch {
     public Histogramer hisImpl = null;
@@ -57,6 +58,10 @@ public class HistogramSketch {
 
     public List<Percentile> percentileList(int percentileTicksPerHalfDistance){
         return hisImpl.percentileList(percentileTicksPerHalfDistance);
+    }
+
+    public Map<String, Object> describe(){
+        return hisImpl.describe();
     }
 
     public static final int getUpdatableSerializationBytes(long lowestDiscernibleValue, long highestTrackableValue, int numberOfSignificantValueDigits){

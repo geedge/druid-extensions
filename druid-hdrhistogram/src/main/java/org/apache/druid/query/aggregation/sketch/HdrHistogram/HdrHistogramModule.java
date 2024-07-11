@@ -9,10 +9,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Binder;
 import org.HdrHistogram.HistogramSketch;
 import org.apache.druid.initialization.DruidModule;
-import org.apache.druid.query.aggregation.sketch.HdrHistogram.sql.HdrHistogramObjectSqlAggregator;
-import org.apache.druid.query.aggregation.sketch.HdrHistogram.sql.HdrHistogramPercentilesOperatorConversion;
-import org.apache.druid.query.aggregation.sketch.HdrHistogram.sql.HdrHistogramQuantileSqlAggregator;
-import org.apache.druid.query.aggregation.sketch.HdrHistogram.sql.HdrHistogramQuantilesOperatorConversion;
+import org.apache.druid.query.aggregation.sketch.HdrHistogram.sql.*;
 import org.apache.druid.segment.column.ColumnType;
 import org.apache.druid.segment.serde.ComplexMetrics;
 import org.apache.druid.sql.guice.SqlBindings;
@@ -27,6 +24,8 @@ public class HdrHistogramModule implements DruidModule {
     public static final byte QUANTILES_HDRHISTOGRAM_TO_QUANTILE_CACHE_TYPE_ID = 0x03;
     public static final byte QUANTILES_HDRHISTOGRAM_TO_QUANTILES_CACHE_TYPE_ID = 0x04;
     public static final byte QUANTILES_HDRHISTOGRAM_TO_PERCENTILES_CACHE_TYPE_ID = 0x05;
+    public static final byte QUANTILES_HDRHISTOGRAM_TO_DESCRIBE_CACHE_TYPE_ID = 0x06;
+    public static final byte QUANTILES_HDRHISTOGRAM_TO_PERCENTILES_DESCRIBE_CACHE_TYPE_ID = 0x07;
 
     public static final String HDRHISTOGRAM_TYPE_NAME = "HdrHistogramSketch";
     public static final ColumnType TYPE = ColumnType.ofComplex(HDRHISTOGRAM_TYPE_NAME);
@@ -50,6 +49,8 @@ public class HdrHistogramModule implements DruidModule {
 
         SqlBindings.addOperatorConversion(binder, HdrHistogramQuantilesOperatorConversion.class);
         SqlBindings.addOperatorConversion(binder, HdrHistogramPercentilesOperatorConversion.class);
+        SqlBindings.addOperatorConversion(binder, HdrHistogramDescribeOperatorConversion.class);
+        SqlBindings.addOperatorConversion(binder, HdrHistogramPercentilesDescribeOperatorConversion.class);
     }
 
     @Override
@@ -61,7 +62,9 @@ public class HdrHistogramModule implements DruidModule {
                                 new NamedType(HdrHistogramMergeAggregatorFactory.class, "HdrHistogramSketchMerge"),
                                 new NamedType(HdrHistogramToQuantilePostAggregator.class, "HdrHistogramSketchToQuantile"),
                                 new NamedType(HdrHistogramToQuantilesPostAggregator.class, "HdrHistogramSketchToQuantiles"),
-                                new NamedType(HdrHistogramToPercentilesPostAggregator.class, "HdrHistogramSketchToPercentiles")
+                                new NamedType(HdrHistogramToPercentilesPostAggregator.class, "HdrHistogramSketchToPercentiles"),
+                                new NamedType(HdrHistogramToDescribePostAggregator.class, "HdrHistogramSketchToDescribe"),
+                                new NamedType(HdrHistogramToPercentilesDescribePostAggregator.class, "HdrHistogramSketchToPercentilesDescription")
                         ).addSerializer(HistogramSketch.class, new HistogramJsonSerializer())
         );
     }
