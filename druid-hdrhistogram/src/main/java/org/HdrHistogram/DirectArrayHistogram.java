@@ -2,7 +2,9 @@ package org.HdrHistogram;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class DirectArrayHistogram extends AbstractHistogram implements Histogramer{
     long totalCount;
@@ -170,6 +172,35 @@ public class DirectArrayHistogram extends AbstractHistogram implements Histogram
             }
         }
         return percentiles;
+    }
+
+    @Override
+    public Map<String, Object> describe() {
+        long min = getMinValue();
+        long max = getMaxValue(); // max = this.maxValue;
+        long count = getTotalCount();
+        double mean = getMean();
+        long sum = (long) (mean * count);
+        mean = Math.round(mean * 100.0) / 100.0;
+        long p25 = getValueAtPercentile(25);
+        long p50 = getValueAtPercentile(50);
+        long p75 = getValueAtPercentile(75);
+        long p90 = getValueAtPercentile(90);
+        long p95 = getValueAtPercentile(95);
+        long p99 = getValueAtPercentile(99);
+        Map<String, Object> rst = new LinkedHashMap<>();
+        rst.put("count", count);
+        rst.put("mean", mean);
+        rst.put("sum", sum);
+        rst.put("min", min);
+        rst.put("p25", p25);
+        rst.put("p50", p50);
+        rst.put("p75", p75);
+        rst.put("p90", p90);
+        rst.put("p95", p95);
+        rst.put("p99", p99);
+        rst.put("max", max);
+        return rst;
     }
 
     @Override

@@ -37,7 +37,7 @@ public class HdrHistogramMergeBufferAggregator implements BufferAggregator {
         this.numberOfSignificantValueDigits = numberOfSignificantValueDigits;
         this.autoResize = autoResize;
         this.size = size;
-        LOG.error("HdrHistogramMergeBufferAggregator gene:" + Thread.currentThread().getName() + "-" + Thread.currentThread().getId());
+        //LOG.error("HdrHistogramMergeBufferAggregator gene:" + Thread.currentThread().getName() + "-" + Thread.currentThread().getId());
     }
 
     @Override
@@ -83,7 +83,7 @@ public class HdrHistogramMergeBufferAggregator implements BufferAggregator {
     @Nullable
     @Override
     public synchronized HistogramSketch get(ByteBuffer buf, int position) {
-        LOG.error("HdrHistogramMergeBufferAggregator get:" +  0  + "-" + Thread.currentThread().getId() + "-" + this);
+        //LOG.error("HdrHistogramMergeBufferAggregator get:" +  0  + "-" + Thread.currentThread().getId() + "-" + this);
         HistogramUnion union = histograms.get(buf).get(position);
         //return histogram.copy();
         return union.getResult().copy();

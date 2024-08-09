@@ -2,6 +2,7 @@ package org.HdrHistogram;
 
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Map;
 
 public interface Histogramer {
     long getTotalCount();
@@ -13,6 +14,8 @@ public interface Histogramer {
     long getValueAtPercentile(double percentile);
 
     List<Percentile> percentileList(int percentileTicksPerHalfDistance);
+
+    Map<String, Object> describe();
 
     Histogramer resetHistogram();
 

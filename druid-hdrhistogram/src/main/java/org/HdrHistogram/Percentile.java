@@ -38,4 +38,13 @@ public class Percentile {
     public void setPercentile(double percentile) {
         this.percentile = percentile;
     }
+
+    @Override
+    public String toString() {
+        return "Percentile{" +
+                "value=" + value +
+                ", count=" + count +
+                ", percentile=" + percentile +
+                '}';
+    }
 }
